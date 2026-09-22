@@ -9,6 +9,7 @@ class SiteHeader extends HTMLElement {
 					<div class="nav-links">
 						<a href="#servicios">Servicios</a>
 						<a href="#proceso">Cómo funciona</a>
+						<a href="#barberos">Barberos</a>
 						<a class="nav-cta" href="#reservar">Reservar turno</a>
 					</div>
 				</nav>
