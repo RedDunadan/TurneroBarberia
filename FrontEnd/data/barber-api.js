@@ -12,8 +12,12 @@ async function parseResponse(response) {
 }
 
 export async function getBarbers() {
-	const response = await fetch(`${API_BASE_URL}/barbers`);
-	return parseResponse(response);
+	try {
+		const response = await fetch(`${API_BASE_URL}/barbers`);
+		return parseResponse(response);
+	} catch {
+		throw new Error("No se pudo conectar con la API. Iniciá el backend con: cd BackEnd && npm start");
+	}
 }
 
 export async function addBarber(barber) {

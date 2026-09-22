@@ -1,7 +1,7 @@
 const ADMIN_SESSION_KEY = "norte-barber-admin-session";
 const ADMIN_CREDENTIALS = {
 	username: "admin",
-	password: "norte2026"
+	password: "admin"
 };
 
 export function isAdminAuthenticated() {
