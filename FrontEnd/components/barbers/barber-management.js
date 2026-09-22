@@ -1,6 +1,6 @@
 import "./barber-form.js";
 import "./barber-list.js";
-import { addBarber, getBarbers, removeBarber } from "../../data/barber-repository.js";
+import { addBarber, getBarbers, removeBarber } from "../../data/barber-api.js";
 
 class BarberManagement extends HTMLElement {
 	connectedCallback() {
@@ -29,19 +29,31 @@ class BarberManagement extends HTMLElement {
 		this.renderBarbers();
 	}
 
-	handleBarberSubmit(event) {
-		const barber = addBarber(event.detail);
-		this.form.showSuccess(barber.name);
-		this.renderBarbers();
+	async handleBarberSubmit(event) {
+		try {
+			const barber = await addBarber(event.detail);
+			this.form.showSuccess(event.detail.name);
+			await this.renderBarbers();
+		} catch (error) {
+			this.form.showFeedback(error.message);
+		}
 	}
 
-	handleBarberRemove(event) {
-		removeBarber(event.detail.id);
-		this.renderBarbers();
+	async handleBarberRemove(event) {
+		try {
+			await removeBarber(event.detail.id);
+			await this.renderBarbers();
+		} catch (error) {
+			this.form.showFeedback(error.message);
+		}
 	}
 
-	renderBarbers() {
-		this.list.render(getBarbers());
+	async renderBarbers() {
+		try {
+			this.list.render(await getBarbers());
+		} catch (error) {
+			this.list.showError(error.message);
+		}
 	}
 }
 

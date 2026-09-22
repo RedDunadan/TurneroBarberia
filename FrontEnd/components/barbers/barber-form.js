@@ -9,6 +9,14 @@ class BarberForm extends HTMLElement {
 					<input id="barber-name" name="nombre" type="text" placeholder="Ej. Martín Gómez" required maxlength="60">
 				</div>
 				<div class="field">
+					<label for="barber-email">Email</label>
+					<input id="barber-email" name="email" type="email" autocomplete="email" placeholder="barbero@email.com" required>
+				</div>
+				<div class="field">
+					<label for="barber-phone">Teléfono</label>
+					<input id="barber-phone" name="telefono" type="tel" autocomplete="tel" placeholder="11 5555 5555" required>
+				</div>
+				<div class="field">
 					<label for="barber-location">Local</label>
 					<select id="barber-location" name="local" required>
 						${BARBER_LOCATIONS.map((location) => `<option value="${location.value}">${location.label}</option>`).join("")}
@@ -49,6 +57,8 @@ class BarberForm extends HTMLElement {
 		const formData = new FormData(this.form);
 		const data = {
 			name: formData.get("nombre"),
+			email: formData.get("email"),
+			phone: formData.get("telefono"),
 			location: formData.get("local"),
 			days: formData.getAll("dias"),
 			start: formData.get("desde"),

@@ -27,6 +27,15 @@ class BarberList extends HTMLElement {
 		barbers.forEach((barber) => this.list.append(this.createBarberItem(barber)));
 	}
 
+	showError(message) {
+		this.querySelector(".barber-count").textContent = "-";
+		this.list.replaceChildren();
+		const errorState = document.createElement("p");
+		errorState.className = "empty-barbers";
+		errorState.textContent = message;
+		this.list.append(errorState);
+	}
+
 	createBarberItem(barber) {
 		const item = document.createElement("article");
 		item.className = "barber-item";
@@ -34,13 +43,16 @@ class BarberList extends HTMLElement {
 			<div>
 				<h4></h4>
 				<p class="barber-meta"></p>
+				<p class="barber-contact"></p>
 				<p class="barber-schedule"></p>
 			</div>
 			<button class="remove-barber" type="button" aria-label="Eliminar barbero">×</button>
 		`;
 		item.querySelector("h4").textContent = barber.name;
 		item.querySelector(".barber-meta").textContent = `${barber.location[0].toUpperCase()}${barber.location.slice(1)}`;
+		item.querySelector(".barber-contact").textContent = `${barber.email} · ${barber.phone}`;
 		item.querySelector(".barber-schedule").textContent = `${barber.days.map((day) => WEEK_DAYS.find((itemDay) => itemDay.value === day)?.label).join(" · ")}  |  ${barber.start} a ${barber.end}`;
+		item.querySelector(".barber-schedule").textContent += `  |  ${barber.bookingCount} turnos`;
 		item.querySelector(".remove-barber").addEventListener("click", () => {
 			this.dispatchEvent(new CustomEvent("barber-remove", { bubbles: true, detail: { id: barber.id } }));
 		});

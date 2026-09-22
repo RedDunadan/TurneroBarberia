@@ -1,0 +1,32 @@
+.admin-body { min-height: 100vh; background: var(--ink); }
+.admin-login { display: grid; width: min(470px, 88vw); min-height: 100vh; align-content: center; margin: 0 auto; padding: 70px 0; color: #fff; }
+.admin-login-mark { display: grid; width: 46px; height: 46px; margin-bottom: 45px; place-items: center; border: 1px solid rgba(255,255,255,.5); border-radius: 50%; font-family: "Barlow Condensed", sans-serif; font-size: 1.2rem; font-weight: 700; }
+.admin-login .section-kicker { margin-bottom: 18px; color: #e7af8c; }
+.admin-login h1 { max-width: none; margin: 0; font-size: clamp(3.8rem, 9vw, 6.5rem); line-height: .83; }
+.admin-login > p { max-width: 380px; margin: 28px 0 38px; color: rgba(255,255,255,.68); font-size: .9rem; line-height: 1.7; }
+.login-form { display: grid; gap: 21px; }
+.login-form .field label { color: rgba(255,255,255,.62); }
+.login-form .field input { border-color: rgba(255,255,255,.28); color: #fff; }
+.login-form .field input:focus { border-color: #e7af8c; }
+.login-form .button { justify-self: start; margin-top: 5px; }
+.login-feedback { min-height: 18px; margin: -7px 0 0; color: #e7af8c; font-size: .78rem; }
+.back-link { width: fit-content; margin-top: 36px; color: rgba(255,255,255,.62); font-size: .78rem; }
+.back-link:hover { color: #fff; }
+.admin-header { display: flex; align-items: center; justify-content: space-between; width: min(1280px, 90vw); margin: 0 auto; padding: 26px 0; color: #fff; }
+.admin-brand { color: #fff; }
+.admin-header-actions { display: flex; align-items: center; gap: 22px; }
+.admin-status { color: rgba(255,255,255,.64); font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.admin-logout { min-height: 38px; padding: 0 15px; border: 1px solid rgba(255,255,255,.4); color: #fff; background: transparent; font-family: "Manrope", sans-serif; font-size: .72rem; letter-spacing: 0; text-transform: none; }
+.admin-logout:hover { background: rgba(255,255,255,.1); }
+.admin-main { min-height: calc(100vh - 90px); color: var(--ink); background: var(--paper); }
+.admin-main .barber-management { padding-top: 75px; }
+.admin-main .barber-management.section { padding-bottom: 90px; }
+.admin-access-link { color: var(--muted); }
+.admin-access-link:hover { color: var(--accent); }
+
+@media (max-width: 800px) {
+	.admin-header { align-items: flex-start; }
+	.admin-header-actions { display: block; text-align: right; }
+	.admin-status { display: block; margin-bottom: 10px; }
+	.admin-main .barber-management { padding-top: 55px; }
+}

@@ -1,0 +1,1 @@
+import "../components/admin/admin-page.js";
