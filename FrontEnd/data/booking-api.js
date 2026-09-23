@@ -29,6 +29,21 @@ export async function createBooking(booking) {
 	return parseResponse(response);
 }
 
+export async function getCustomerBookings(email, phone) {
+	const params = new URLSearchParams({ email, phone });
+	const response = await fetch(`${API_BASE_URL}/bookings/customer?${params}`);
+	return parseResponse(response);
+}
+
+export async function cancelBooking(id, email, phone) {
+	const response = await fetch(`${API_BASE_URL}/bookings/${id}/cancel`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ email, phone })
+	});
+	return parseResponse(response);
+}
+
 export async function getAvailableBarbers() {
 	const response = await fetch(`${API_BASE_URL}/barbers`);
 	return response.ok ? response.json() : [];

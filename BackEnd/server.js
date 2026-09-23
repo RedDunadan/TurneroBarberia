@@ -98,6 +98,24 @@ const createBooking = database.prepare(`
 		barber_id
 	) VALUES (@name, @email, @phone, @service, @date, @location, @barberId)
 `);
+const listCustomerBookings = database.prepare(`
+	SELECT
+		bookings.id,
+		bookings.customer_name AS customerName,
+		bookings.service,
+		bookings.booking_date AS date,
+		bookings.location,
+		barbers.name AS barberName
+	FROM bookings
+	LEFT JOIN barbers ON barbers.id = bookings.barber_id
+	WHERE bookings.customer_email = ? AND bookings.customer_phone = ? AND bookings.status != 'cancelled'
+	ORDER BY bookings.booking_date ASC, bookings.id ASC
+`);
+const cancelCustomerBooking = database.prepare(`
+	UPDATE bookings
+	SET status = 'cancelled'
+	WHERE id = ? AND customer_email = ? AND customer_phone = ? AND status != 'cancelled'
+`);
 
 app.get("/api/health", (_request, response) => {
 	response.json({ status: "ok" });
@@ -214,6 +232,31 @@ app.post("/api/bookings", (request, response) => {
 		console.error("Error al guardar el turno:", error);
 		return response.status(500).json({ error: "No se pudo guardar el turno." });
 	}
+});
+
+app.get("/api/bookings/customer", (request, response) => {
+	const email = typeof request.query.email === "string" ? request.query.email.trim().toLowerCase() : "";
+	const phone = typeof request.query.phone === "string" ? request.query.phone.trim() : "";
+
+	if (!/^\S+@\S+\.\S+$/.test(email) || !/^[-+()\s\d]{7,25}$/.test(phone)) {
+		return response.status(400).json({ error: "Ingresá el email y teléfono usados en la reserva." });
+	}
+	return response.json(listCustomerBookings.all(email, phone));
+});
+
+app.patch("/api/bookings/:id/cancel", (request, response) => {
+	const email = typeof request.body.email === "string" ? request.body.email.trim().toLowerCase() : "";
+	const phone = typeof request.body.phone === "string" ? request.body.phone.trim() : "";
+	const bookingId = Number(request.params.id);
+
+	if (!Number.isInteger(bookingId) || !/^\S+@\S+\.\S+$/.test(email) || !/^[-+()\s\d]{7,25}$/.test(phone)) {
+		return response.status(400).json({ error: "Los datos para cancelar el turno no son válidos." });
+	}
+	const result = cancelCustomerBooking.run(bookingId, email, phone);
+	if (!result.changes) {
+		return response.status(404).json({ error: "No encontramos ese turno activo con esos datos." });
+	}
+	return response.json({ message: "Turno cancelado correctamente." });
 });
 
 app.listen(port, () => {

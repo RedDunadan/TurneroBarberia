@@ -8,7 +8,7 @@ class BookingSection extends HTMLElement {
 			<section class="booking-wrap" id="reservar" aria-labelledby="booking-title">
 				<div class="booking-card">
 					<div class="booking-intro">
-						<h2 id="booking-title">Empezá<br>tu reserva</h2>
+						<h2 id="booking-title">Agendá<br>tu turno</h2>
 						<p>Completá estos datos y te mostramos los barberos disponibles para tu visita.</p>
 					</div>
 					<form class="booking-form" id="booking-form">
@@ -49,8 +49,13 @@ class BookingSection extends HTMLElement {
 								<option value="">Cargando barberos...</option>
 							</select>
 						</div>
-						<button class="button button-primary form-button" type="submit">Ver horarios <span class="arrow">→</span></button>
+						<button class="button button-primary form-button" type="submit">Agendar turno <span class="arrow">→</span></button>
 						<p class="booking-feedback" role="status" aria-live="polite"></p>
+						<div class="booking-confirmation" role="status" aria-live="polite" hidden>
+							<strong>Turno agendado</strong>
+							<p class="confirmation-summary"></p>
+							<button class="button confirmation-new" type="button">Agendar otro turno</button>
+						</div>
 					</form>
 				</div>
 			</section>
@@ -62,9 +67,11 @@ class BookingSection extends HTMLElement {
 		this.locationInput = this.querySelector("#location");
 		this.dateInput = this.querySelector("#date");
 		this.barberInput = this.querySelector("#barber");
+		this.confirmation = this.querySelector(".booking-confirmation");
 		this.locationInput.addEventListener("change", () => this.renderBarberOptions());
 		this.dateInput.addEventListener("change", () => this.renderBarberOptions());
 		this.form.addEventListener("submit", (event) => this.submitBooking(event));
+		this.querySelector(".confirmation-new").addEventListener("click", () => this.startNewBooking());
 		this.loadBarbers();
 	}
 
@@ -111,6 +118,7 @@ class BookingSection extends HTMLElement {
 			location: formData.get("local"),
 			barberId: Number(formData.get("barbero"))
 		};
+		const selectedBarber = this.barbers.find((barber) => barber.id === booking.barberId);
 
 		feedback.textContent = "Guardando tu turno...";
 		feedback.className = "booking-feedback is-loading";
@@ -118,8 +126,9 @@ class BookingSection extends HTMLElement {
 
 		try {
 			await createBooking(booking);
-			feedback.textContent = "Tu turno fue registrado. Te contactaremos para confirmarlo.";
+			feedback.textContent = "Tu turno fue registrado correctamente.";
 			feedback.className = "booking-feedback is-success";
+			this.showConfirmation(booking, selectedBarber);
 			this.form.reset();
 			this.setMinimumDate();
 			this.renderBarberOptions();
@@ -129,6 +138,28 @@ class BookingSection extends HTMLElement {
 		} finally {
 			submitButton.disabled = false;
 		}
+	}
+
+	showConfirmation(booking, barber) {
+		const date = new Date(`${booking.date}T12:00:00`).toLocaleDateString("es-AR", {
+			weekday: "long",
+			day: "numeric",
+			month: "long"
+		});
+		const serviceLabels = {
+			corte: "Corte clásico",
+			"corte-barba": "Corte + barba",
+			barba: "Arreglo de barba"
+		};
+		const locationLabels = { palermo: "Palermo", belgrano: "Belgrano" };
+		this.querySelector(".confirmation-summary").textContent = `${date} · ${serviceLabels[booking.service]} · ${locationLabels[booking.location]} · ${barber?.name || "Barbero asignado"}. Te esperamos, ${booking.name}.`;
+		this.confirmation.hidden = false;
+	}
+
+	startNewBooking() {
+		this.confirmation.hidden = true;
+		this.querySelector(".booking-feedback").textContent = "";
+		this.querySelector("#customer-name").focus();
 	}
 
 	setMinimumDate() {

@@ -51,11 +51,30 @@ h1 { max-width: 650px; margin: 0; font-size: clamp(4.5rem, 10vw, 8.5rem); font-w
 .booking-feedback.is-success { color: var(--sage); }
 .booking-feedback.is-error { color: var(--accent-dark); }
 .booking-form button:disabled { cursor: wait; opacity: .65; }
+.booking-confirmation { grid-column: 1 / -1; padding: 17px 19px; border-left: 3px solid var(--sage); background: #edf1eb; }
+.booking-confirmation strong { display: block; color: var(--sage); font-family: "Barlow Condensed", sans-serif; font-size: 1.45rem; text-transform: uppercase; }
+.confirmation-summary { margin: 5px 0 14px; color: var(--ink); font-size: .8rem; line-height: 1.55; }
+.confirmation-new { min-height: 36px; padding: 0 15px; color: var(--ink); background: transparent; border: 1px solid var(--sage); font-family: "Manrope", sans-serif; font-size: .75rem; letter-spacing: 0; text-transform: none; }
+.confirmation-new:hover { color: #fff; background: var(--sage); }
 .field { display: flex; flex-direction: column; gap: 8px; }
 .field label { color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .field select, .field input { width: 100%; min-height: 44px; padding: 0 10px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; color: var(--ink); background: transparent; outline: none; }
 .field select:focus, .field input:focus { border-color: var(--accent); }
 .form-button { min-height: 44px; padding: 0 19px; }
+
+.cancellation { padding-top: 80px; }
+.cancellation-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 22px; align-items: end; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+.cancellation-feedback { grid-column: 1 / -1; min-height: 18px; margin: -8px 0 0; color: var(--muted); font-size: .78rem; }
+.cancellation-feedback.is-success { color: var(--sage); }
+.cancellation-feedback.is-error { color: var(--accent-dark); }
+.customer-bookings { border-bottom: 1px solid var(--line); }
+.customer-booking { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 19px 0; border-top: 1px solid var(--line); }
+.customer-booking strong, .customer-booking span { display: block; }
+.customer-booking strong { margin-bottom: 5px; color: var(--accent-dark); font-family: "Barlow Condensed", sans-serif; font-size: 1.35rem; text-transform: uppercase; }
+.customer-booking span { color: var(--muted); font-size: .78rem; text-transform: capitalize; }
+.cancellation-button { min-height: 38px; padding: 0 16px; color: var(--accent-dark); border: 1px solid var(--accent); background: transparent; font-family: "Manrope", sans-serif; font-size: .72rem; letter-spacing: 0; text-transform: none; }
+.cancellation-button:hover { color: #fff; background: var(--accent); }
+.cancellation-button:disabled { cursor: wait; opacity: .6; }
 
 .section { width: min(1120px, 90vw); margin: 0 auto; padding: 115px 0; }
 .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-bottom: 44px; }
@@ -92,6 +111,10 @@ footer strong { color: var(--ink); font-family: "Barlow Condensed", sans-serif; 
 	.booking-form .field-wide { grid-column: auto; }
 	.booking-intro { padding: 27px; }
 	.booking-form { gap: 15px; padding: 25px 27px 28px; }
+	.cancellation { padding-top: 55px; }
+	.cancellation-form { grid-template-columns: 1fr; gap: 15px; }
+	.cancellation-feedback { grid-column: auto; margin-top: 0; }
+	.customer-booking { align-items: flex-start; flex-direction: column; gap: 14px; }
 	.section { padding: 78px 0; }
 	.section-heading { display: block; }
 	.section-heading p { margin-top: 22px; }
