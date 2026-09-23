@@ -70,6 +70,22 @@ const insertBarber = database.prepare(`
 
 const deleteBarber = database.prepare("DELETE FROM barbers WHERE id = ?");
 const findBarber = database.prepare("SELECT id, location, days FROM barbers WHERE id = ?");
+const listPendingBookings = database.prepare(`
+	SELECT
+		bookings.id,
+		bookings.customer_name AS customerName,
+		bookings.customer_email AS customerEmail,
+		bookings.customer_phone AS customerPhone,
+		bookings.service,
+		bookings.booking_date AS date,
+		bookings.location,
+		bookings.status,
+		barbers.name AS barberName
+	FROM bookings
+	LEFT JOIN barbers ON barbers.id = bookings.barber_id
+	WHERE bookings.status = 'pending'
+	ORDER BY bookings.booking_date ASC, bookings.id ASC
+`);
 
 const createBooking = database.prepare(`
 	INSERT INTO bookings (
@@ -144,6 +160,10 @@ app.delete("/api/barbers/:id", (request, response) => {
 		return response.status(404).json({ error: "Barbero no encontrado." });
 	}
 	return response.status(204).send();
+});
+
+app.get("/api/bookings/pending", (_request, response) => {
+	response.json(listPendingBookings.all());
 });
 
 app.post("/api/bookings", (request, response) => {

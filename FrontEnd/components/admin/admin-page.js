@@ -1,4 +1,5 @@
 import "./admin-login.js";
+import "./pending-bookings.js";
 import "../barbers/barber-management.js";
 import { isAdminAuthenticated, logoutAdmin } from "../../data/admin-auth.js";
 
@@ -24,6 +25,7 @@ class AdminPage extends HTMLElement {
 			</header>
 			<main class="admin-main">
 				<barber-management></barber-management>
+				<pending-bookings></pending-bookings>
 			</main>
 		`;
 		this.querySelector(".admin-logout").addEventListener("click", () => {
