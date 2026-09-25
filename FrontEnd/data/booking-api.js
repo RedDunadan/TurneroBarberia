@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:3000/api";
+import { API_BASE_URL } from "./api-config.js";
 
 async function parseResponse(response) {
 	if (response.status === 204) {
@@ -13,7 +13,7 @@ async function parseResponse(response) {
 
 export async function getPendingBookings() {
 	try {
-		const response = await fetch(`${API_BASE_URL}/bookings/pending`);
+		const response = await fetch(`${API_BASE_URL}/admin/bookings/pending`, { credentials: "include" });
 		return parseResponse(response);
 	} catch {
 		throw new Error("No se pudo conectar con la API. Iniciá el backend con: cd BackEnd && npm start");

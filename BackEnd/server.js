@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import Database from "better-sqlite3";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,9 +9,83 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const database = new Database(path.join(__dirname, "turnero.db"));
 const app = express();
 const port = process.env.PORT || 3000;
+const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5500";
+const adminUsername = process.env.ADMIN_USERNAME || "admin";
+const adminPassword = process.env.ADMIN_PASSWORD || "admin";
+const sessions = new Map();
+const sessionDuration = 8 * 60 * 60 * 1000;
+const sessionCookieName = "admin_session";
 
-app.use(cors());
+app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json());
+
+function parseCookies(request) {
+	return Object.fromEntries((request.headers.cookie || "").split(";").filter(Boolean).map((cookie) => {
+		const separatorIndex = cookie.indexOf("=");
+		return [cookie.slice(0, separatorIndex).trim(), decodeURIComponent(cookie.slice(separatorIndex + 1).trim())];
+	}));
+}
+
+function passwordMatches(password) {
+	const configuredHash = process.env.ADMIN_PASSWORD_HASH;
+	if (!configuredHash) {
+		return password === adminPassword;
+	}
+
+	const [salt, expectedHash] = configuredHash.split(":");
+	if (!salt || !expectedHash) {
+		return false;
+	}
+
+	const actualHash = scryptSync(password, salt, 64).toString("hex");
+	const expectedBuffer = Buffer.from(expectedHash, "hex");
+	const actualBuffer = Buffer.from(actualHash, "hex");
+	return expectedBuffer.length === actualBuffer.length && timingSafeEqual(expectedBuffer, actualBuffer);
+}
+
+function setSessionCookie(response, token, maxAge = sessionDuration / 1000) {
+	const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+	response.setHeader("Set-Cookie", `${sessionCookieName}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`);
+}
+
+function requireAdmin(request, response, next) {
+	const token = parseCookies(request)[sessionCookieName];
+	const session = token ? sessions.get(token) : null;
+	if (!session || session.expiresAt <= Date.now()) {
+		if (token) {
+			sessions.delete(token);
+		}
+		return response.status(401).json({ error: "Se requiere una sesión de administrador." });
+	}
+
+	request.adminSession = session;
+	next();
+}
+
+app.post("/api/auth/login", (request, response) => {
+	const { username, password } = request.body;
+	if (username !== adminUsername || typeof password !== "string" || !passwordMatches(password)) {
+		return response.status(401).json({ error: "Usuario o contraseña incorrectos." });
+	}
+
+	const token = randomBytes(32).toString("hex");
+	sessions.set(token, { username, expiresAt: Date.now() + sessionDuration });
+	setSessionCookie(response, token);
+	return response.json({ username });
+});
+
+app.post("/api/auth/logout", (request, response) => {
+	const token = parseCookies(request)[sessionCookieName];
+	if (token) {
+		sessions.delete(token);
+	}
+	setSessionCookie(response, "", 0);
+	return response.status(204).send();
+});
+
+app.get("/api/auth/me", requireAdmin, (_request, response) => {
+	response.json({ authenticated: true });
+});
 
 database.pragma("journal_mode = WAL");
 database.pragma("foreign_keys = ON");
@@ -122,6 +197,11 @@ app.get("/api/health", (_request, response) => {
 });
 
 app.get("/api/barbers", (_request, response) => {
+	const barbers = listBarbers.all().map(({ id, name, location, days }) => ({ id, name, location, days: JSON.parse(days) }));
+	response.json(barbers);
+});
+
+app.get("/api/admin/barbers", requireAdmin, (_request, response) => {
 	const barbers = listBarbers.all().map((barber) => ({
 		...barber,
 		days: JSON.parse(barber.days),
@@ -130,7 +210,7 @@ app.get("/api/barbers", (_request, response) => {
 	response.json(barbers);
 });
 
-app.post("/api/barbers", (request, response) => {
+app.post("/api/admin/barbers", requireAdmin, (request, response) => {
 	const { name, email, phone, location, days, start, end } = request.body;
 	const normalizedName = typeof name === "string" ? name.trim() : "";
 	const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
@@ -172,7 +252,7 @@ app.post("/api/barbers", (request, response) => {
 	}
 });
 
-app.delete("/api/barbers/:id", (request, response) => {
+app.delete("/api/admin/barbers/:id", requireAdmin, (request, response) => {
 	const result = deleteBarber.run(request.params.id);
 	if (!result.changes) {
 		return response.status(404).json({ error: "Barbero no encontrado." });
@@ -180,7 +260,7 @@ app.delete("/api/barbers/:id", (request, response) => {
 	return response.status(204).send();
 });
 
-app.get("/api/bookings/pending", (_request, response) => {
+app.get("/api/admin/bookings/pending", requireAdmin, (_request, response) => {
 	response.json(listPendingBookings.all());
 });
 

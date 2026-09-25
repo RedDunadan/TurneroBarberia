@@ -28,10 +28,10 @@ class AdminLogin extends HTMLElement {
 		this.form.addEventListener("submit", (event) => this.handleSubmit(event));
 	}
 
-	handleSubmit(event) {
+	async handleSubmit(event) {
 		event.preventDefault();
 		const formData = new FormData(this.form);
-		const isValid = loginAdmin(formData.get("usuario"), formData.get("clave"));
+		const isValid = await loginAdmin(formData.get("usuario"), formData.get("clave"));
 
 		if (!isValid) {
 			this.querySelector(".login-feedback").textContent = "Usuario o contraseña incorrectos.";

@@ -9,8 +9,8 @@ class AdminPage extends HTMLElement {
 		this.addEventListener("admin-login", () => this.render());
 	}
 
-	render() {
-		if (!isAdminAuthenticated()) {
+	async render() {
+		if (!await isAdminAuthenticated()) {
 			this.innerHTML = "<admin-login></admin-login>";
 			return;
 		}
@@ -28,8 +28,8 @@ class AdminPage extends HTMLElement {
 				<pending-bookings></pending-bookings>
 			</main>
 		`;
-		this.querySelector(".admin-logout").addEventListener("click", () => {
-			logoutAdmin();
+		this.querySelector(".admin-logout").addEventListener("click", async () => {
+			await logoutAdmin();
 			this.render();
 		});
 	}

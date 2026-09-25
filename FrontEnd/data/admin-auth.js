@@ -1,21 +1,31 @@
-const ADMIN_SESSION_KEY = "norte-barber-admin-session";
-const ADMIN_CREDENTIALS = {
-	username: "admin",
-	password: "admin"
-};
+const API_BASE_URL = "http://localhost:3000/api";
 
-export function isAdminAuthenticated() {
-	return sessionStorage.getItem(ADMIN_SESSION_KEY) === "authenticated";
-}
-
-export function loginAdmin(username, password) {
-	const isValid = username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password;
-	if (isValid) {
-		sessionStorage.setItem(ADMIN_SESSION_KEY, "authenticated");
+export async function isAdminAuthenticated() {
+	try {
+		const response = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" });
+		return response.ok;
+	} catch {
+		return false;
 	}
-	return isValid;
 }
 
-export function logoutAdmin() {
-	sessionStorage.removeItem(ADMIN_SESSION_KEY);
+export async function loginAdmin(username, password) {
+	try {
+		const response = await fetch(`${API_BASE_URL}/auth/login`, {
+			method: "POST",
+			credentials: "include",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ username, password })
+		});
+		return response.ok;
+	} catch {
+		return false;
+	}
+}
+
+export async function logoutAdmin() {
+	await fetch(`${API_BASE_URL}/auth/logout`, {
+		method: "POST",
+		credentials: "include"
+	});
 }

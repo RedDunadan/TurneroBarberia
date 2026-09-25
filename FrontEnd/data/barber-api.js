@@ -1,4 +1,6 @@
-const API_BASE_URL = "http://localhost:3000/api";
+import { API_BASE_URL } from "./api-config.js";
+
+const ADMIN_API_BASE_URL = `${API_BASE_URL}/admin`;
 
 async function parseResponse(response) {
 	if (response.status === 204) {
@@ -13,7 +15,7 @@ async function parseResponse(response) {
 
 export async function getBarbers() {
 	try {
-		const response = await fetch(`${API_BASE_URL}/barbers`);
+		const response = await fetch(`${ADMIN_API_BASE_URL}/barbers`, { credentials: "include" });
 		return parseResponse(response);
 	} catch {
 		throw new Error("No se pudo conectar con la API. Iniciá el backend con: cd BackEnd && npm start");
@@ -21,8 +23,9 @@ export async function getBarbers() {
 }
 
 export async function addBarber(barber) {
-	const response = await fetch(`${API_BASE_URL}/barbers`, {
+	const response = await fetch(`${ADMIN_API_BASE_URL}/barbers`, {
 		method: "POST",
+		credentials: "include",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(barber)
 	});
@@ -30,6 +33,6 @@ export async function addBarber(barber) {
 }
 
 export async function removeBarber(id) {
-	const response = await fetch(`${API_BASE_URL}/barbers/${id}`, { method: "DELETE" });
+	const response = await fetch(`${ADMIN_API_BASE_URL}/barbers/${id}`, { method: "DELETE", credentials: "include" });
 	return parseResponse(response);
 }
