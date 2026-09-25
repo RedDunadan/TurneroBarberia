@@ -1,4 +1,4 @@
-import { getPendingBookings } from "../../data/booking-api.js";
+import { deleteAdminBooking, getPendingBookings } from "../../data/booking-api.js";
 
 const SERVICE_LABELS = {
 	corte: "Corte clásico",
@@ -86,6 +86,7 @@ class PendingBookings extends HTMLElement {
 				<strong></strong>
 				<span></span>
 			</div>
+			<button class="button pending-booking-delete" type="button">Borrar turno</button>
 		`;
 
 		const date = new Date(`${booking.date}T12:00:00`);
@@ -96,6 +97,23 @@ class PendingBookings extends HTMLElement {
 		item.querySelector(".pending-booking-contact").textContent = `${booking.customerEmail} · ${booking.customerPhone}`;
 		item.querySelector(".pending-booking-assignment strong").textContent = booking.barberName || "Barbero no asignado";
 		item.querySelector(".pending-booking-assignment span").textContent = "Pendiente";
+		item.querySelector(".pending-booking-delete").addEventListener("click", async () => {
+			if (!window.confirm(`¿Borrar el turno de ${booking.customerName}? Esta acción no se puede deshacer.`)) {
+				return;
+			}
+
+			const deleteButton = item.querySelector(".pending-booking-delete");
+			deleteButton.disabled = true;
+			deleteButton.textContent = "Borrando...";
+			try {
+				await deleteAdminBooking(booking.id);
+				await this.loadBookings();
+			} catch (error) {
+				deleteButton.disabled = false;
+				deleteButton.textContent = "Borrar turno";
+				window.alert(error.message);
+			}
+		});
 		return item;
 	}
 }

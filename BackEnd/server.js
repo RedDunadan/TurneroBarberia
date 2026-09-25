@@ -144,6 +144,7 @@ const insertBarber = database.prepare(`
 `);
 
 const deleteBarber = database.prepare("DELETE FROM barbers WHERE id = ?");
+const deleteBooking = database.prepare("DELETE FROM bookings WHERE id = ?");
 const findBarber = database.prepare("SELECT id, location, days FROM barbers WHERE id = ?");
 const listPendingBookings = database.prepare(`
 	SELECT
@@ -262,6 +263,19 @@ app.delete("/api/admin/barbers/:id", requireAdmin, (request, response) => {
 
 app.get("/api/admin/bookings/pending", requireAdmin, (_request, response) => {
 	response.json(listPendingBookings.all());
+});
+
+app.delete("/api/admin/bookings/:id", requireAdmin, (request, response) => {
+	const bookingId = Number(request.params.id);
+	if (!Number.isInteger(bookingId) || bookingId < 1) {
+		return response.status(400).json({ error: "El identificador del turno no es válido." });
+	}
+
+	const result = deleteBooking.run(bookingId);
+	if (!result.changes) {
+		return response.status(404).json({ error: "Turno no encontrado." });
+	}
+	return response.status(204).send();
 });
 
 app.post("/api/bookings", (request, response) => {

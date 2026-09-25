@@ -20,6 +20,14 @@ export async function getPendingBookings() {
 	}
 }
 
+export async function deleteAdminBooking(id) {
+	const response = await fetch(`${API_BASE_URL}/admin/bookings/${id}`, {
+		method: "DELETE",
+		credentials: "include"
+	});
+	return parseResponse(response);
+}
+
 export async function createBooking(booking) {
 	const response = await fetch(`${API_BASE_URL}/bookings`, {
 		method: "POST",

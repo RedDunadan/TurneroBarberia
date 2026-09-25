@@ -26,7 +26,7 @@
 .pending-bookings-header { display: flex; align-items: center; justify-content: space-between; padding: 24px 32px; border-bottom: 1px solid var(--line); }
 .pending-bookings-header h3 { margin: 0; font-size: 1.5rem; text-transform: uppercase; }
 .pending-bookings-count { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; color: #fff; background: var(--accent); font-family: "Barlow Condensed", sans-serif; font-size: 1.1rem; }
-.pending-booking-item { display: grid; grid-template-columns: 110px minmax(0, 1fr) minmax(160px, .5fr); gap: 24px; align-items: center; padding: 22px 32px; border-bottom: 1px solid var(--line); }
+.pending-booking-item { display: grid; grid-template-columns: 110px minmax(0, 1fr) minmax(160px, .5fr) auto; gap: 24px; align-items: center; padding: 22px 32px; border-bottom: 1px solid var(--line); }
 .pending-booking-item:last-child { border-bottom: 0; }
 .pending-booking-date { display: grid; gap: 3px; color: var(--accent-dark); }
 .pending-booking-date strong { font-family: "Barlow Condensed", sans-serif; font-size: 1.7rem; line-height: .9; text-transform: uppercase; }
@@ -37,6 +37,9 @@
 .pending-booking-assignment { display: grid; gap: 5px; padding-left: 20px; border-left: 1px solid var(--line); }
 .pending-booking-assignment strong { color: var(--ink); font-size: .8rem; }
 .pending-booking-assignment span { color: var(--accent); font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.pending-booking-delete { min-height: 36px; padding: 0 12px; color: var(--accent-dark); background: transparent; font-size: .68rem; }
+.pending-booking-delete:hover { color: var(--paper); background: var(--accent-dark); }
+.pending-booking-delete:disabled { cursor: wait; opacity: .6; }
 .pending-bookings-empty { margin: 0; padding: 28px 32px; color: var(--muted); font-size: .8rem; }
 .pending-bookings-error { color: var(--accent-dark); }
 .admin-access-link { color: var(--muted); }
@@ -49,5 +52,6 @@
 	.admin-main .barber-management { padding-top: 55px; }
 	.pending-booking-item { grid-template-columns: 1fr; gap: 12px; padding: 20px 27px; }
 	.pending-booking-assignment { padding: 12px 0 0; border-top: 1px solid var(--line); border-left: 0; }
+	.pending-booking-delete { justify-self: start; }
 	.pending-bookings-header { padding: 20px 27px; }
 }
