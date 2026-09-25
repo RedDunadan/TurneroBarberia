@@ -1,0 +1,9 @@
+{
+  "name": "turnero-barberia-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../scripts/build-frontend.js",
+    "dev": "node ../scripts/dev.js"
+  }
+}

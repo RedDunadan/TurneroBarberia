@@ -11,6 +11,25 @@ El comando carga los barberos de prueba, inicia la API con recarga automática y
 
 Detené ambos procesos con `Ctrl+C`.
 
+## Configuración y build del frontend
+
+El frontend tiene su propio `package.json` y usa módulos JavaScript nativos, sin dependencias externas ni bundler. El build copia los archivos estáticos a `FrontEnd/dist` y configura la URL de la API desde la variable de entorno `FRONTEND_API_BASE_URL`.
+
+Para construirlo:
+
+```bash
+npm run build:frontend
+```
+
+En Windows PowerShell, para usar otra API durante el build:
+
+```powershell
+$env:FRONTEND_API_BASE_URL = "https://api.example.com/api"
+npm run build:frontend
+```
+
+El valor predeterminado es `http://localhost:3000/api`. El desarrollo continúa sirviendo los archivos fuente directamente con `npm run dev`.
+
 ## Páginas
 
 - `Index.html`: sitio público y flujo de reserva.

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:frontend": "npm --prefix FrontEnd run build",
     "dev": "node scripts/dev.js",
     "start": "node scripts/dev.js"
   }
