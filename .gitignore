@@ -2,6 +2,7 @@ node_modules/
 .env
 .env.*
 !.env.example
+!.env.docker.example
 BackEnd/turnero.db
 BackEnd/turnero.db-wal
 BackEnd/turnero.db-shm

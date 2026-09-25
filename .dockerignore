@@ -1,0 +1,9 @@
+.git
+.gitignore
+node_modules
+BackEnd/node_modules
+BackEnd/turnero.db*
+FrontEnd/dist
+*.log
+*.report.html
+.env*

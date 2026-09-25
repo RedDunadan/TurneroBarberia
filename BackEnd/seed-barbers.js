@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const database = new Database(path.join(__dirname, "turnero.db"));
+const databasePath = process.env.DATABASE_PATH || path.join(__dirname, "turnero.db");
+const database = new Database(databasePath);
 
 database.exec(`
 	CREATE TABLE IF NOT EXISTS barbers (

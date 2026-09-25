@@ -20,6 +20,31 @@ El comando carga los barberos de prueba, inicia la API con recarga automática y
 
 Detené ambos procesos con `Ctrl+C`.
 
+## Docker
+
+Requisitos: Docker Desktop en ejecución.
+
+1. Copiá `.env.docker.example` como `.env.docker` y cambiá las credenciales.
+2. Construí y levantá los contenedores:
+
+```bash
+docker compose --env-file .env.docker up --build -d
+```
+
+Abrí `http://localhost:8080/` para el sitio público y `http://localhost:8080/admin.html` para el panel. La API queda publicada en `http://localhost:3000`.
+
+La base SQLite se conserva en el volumen `turnero-data`. Para detener los contenedores sin borrar los turnos:
+
+```bash
+docker compose down
+```
+
+Para borrar también la base persistida:
+
+```bash
+docker compose down -v
+```
+
 ## Configuración y build del frontend
 
 El frontend tiene su propio `package.json` y usa módulos JavaScript nativos, sin dependencias externas ni bundler. El build copia los archivos estáticos a `FrontEnd/dist` y configura la URL de la API desde la variable de entorno `FRONTEND_API_BASE_URL`.
