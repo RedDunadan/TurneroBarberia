@@ -6,16 +6,12 @@ class CancellationSection extends HTMLElement {
 			<section class="cancellation section" id="cancelar" aria-labelledby="cancellation-title">
 				<div class="section-heading">
 					<h2 id="cancellation-title">¿Necesitás<br>cancelar?</h2>
-					<p>Ingresá los mismos datos de tu reserva para consultar tus turnos activos.</p>
+					<p>Ingresá el código de cancelación que recibiste al reservar.</p>
 				</div>
 				<form class="cancellation-form" novalidate>
 					<div class="field">
-						<label for="cancellation-email">Email</label>
-						<input id="cancellation-email" name="email" type="email" autocomplete="email" required placeholder="tu@email.com">
-					</div>
-					<div class="field">
-						<label for="cancellation-phone">Teléfono</label>
-						<input id="cancellation-phone" name="phone" type="tel" autocomplete="tel" required placeholder="11 5555 5555">
+						<label for="cancellation-token">Código de cancelación</label>
+						<input id="cancellation-token" name="token" type="text" inputmode="text" autocomplete="off" required pattern="[a-fA-F0-9]{48}" placeholder="Pegá tu código de 48 caracteres">
 					</div>
 					<button class="button button-primary" type="submit">Ver mis turnos <span class="arrow">→</span></button>
 					<p class="cancellation-feedback" role="status" aria-live="polite"></p>
@@ -26,8 +22,7 @@ class CancellationSection extends HTMLElement {
 
 		this.form = this.querySelector(".cancellation-form");
 		this.list = this.querySelector(".customer-bookings");
-		this.emailInput = this.querySelector("[name=email]");
-		this.phoneInput = this.querySelector("[name=phone]");
+		this.tokenInput = this.querySelector("[name=token]");
 		this.form.addEventListener("submit", (event) => this.findBookings(event));
 	}
 
@@ -35,7 +30,7 @@ class CancellationSection extends HTMLElement {
 		event.preventDefault();
 		this.setFeedback("Buscando tus turnos...", "is-loading");
 		try {
-			const bookings = await getCustomerBookings(this.emailInput.value, this.phoneInput.value);
+			const bookings = await getCustomerBookings(this.tokenInput.value);
 			this.renderBookings(bookings);
 			this.setFeedback(bookings.length ? "Seleccioná el turno que querés cancelar." : "No encontramos turnos activos con esos datos.", bookings.length ? "" : "is-error");
 		} catch (error) {
@@ -55,7 +50,13 @@ class CancellationSection extends HTMLElement {
 			item.className = "customer-booking";
 			const date = new Date(`${booking.date}T12:00:00`).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
 			const serviceLabels = { corte: "Corte clásico", "corte-barba": "Corte + barba", barba: "Arreglo de barba" };
-			item.innerHTML = `<div><strong>${date}</strong><span>${serviceLabels[booking.service]} · ${booking.location} · ${booking.barberName || "Barbero asignado"}</span></div>`;
+			const details = document.createElement("div");
+			const dateElement = document.createElement("strong");
+			dateElement.textContent = date;
+			const detailsElement = document.createElement("span");
+			detailsElement.textContent = `${serviceLabels[booking.service]} · ${booking.location} · ${booking.barberName || "Barbero asignado"}`;
+			details.append(dateElement, detailsElement);
+			item.append(details);
 			const button = document.createElement("button");
 			button.className = "button cancellation-button";
 			button.type = "button";
@@ -71,7 +72,7 @@ class CancellationSection extends HTMLElement {
 		if (!window.confirm("¿Querés cancelar este turno?")) return;
 		button.disabled = true;
 		try {
-			await cancelBooking(id, this.emailInput.value, this.phoneInput.value);
+			await cancelBooking(id, this.tokenInput.value);
 			item.remove();
 			this.setFeedback("El turno fue cancelado correctamente.", "is-success");
 			if (!this.list.children.length) this.list.hidden = true;

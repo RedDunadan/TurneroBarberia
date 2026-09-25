@@ -10,24 +10,71 @@ const database = new Database(path.join(__dirname, "turnero.db"));
 const app = express();
 const port = process.env.PORT || 3000;
 const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5500";
-const adminUsername = process.env.ADMIN_USERNAME || "admin";
-const adminPassword = process.env.ADMIN_PASSWORD || "admin";
+const adminUsername = process.env.ADMIN_USERNAME?.trim();
+const adminPassword = process.env.ADMIN_PASSWORD;
+const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
 const sessions = new Map();
+const rateLimitBuckets = new Map();
 const sessionDuration = 8 * 60 * 60 * 1000;
 const sessionCookieName = "admin_session";
+const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+
+if (!adminUsername || (!adminPassword && !adminPasswordHash)) {
+	throw new Error("ADMIN_USERNAME y ADMIN_PASSWORD o ADMIN_PASSWORD_HASH son obligatorios.");
+}
 
 app.use(cors({ origin: frontendOrigin, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: "16kb" }));
+
+function rateLimit({ limit, windowMs, key: bucketKey }) {
+	return (request, response, next) => {
+		const key = `${request.socket.remoteAddress || "unknown"}:${bucketKey || request.path}`;
+		const now = Date.now();
+		const bucket = rateLimitBuckets.get(key);
+		if (!bucket || bucket.expiresAt <= now) {
+			rateLimitBuckets.set(key, { count: 1, expiresAt: now + windowMs });
+			return next();
+		}
+		if (bucket.count >= limit) {
+			response.setHeader("Retry-After", Math.ceil((bucket.expiresAt - now) / 1000));
+			return response.status(429).json({ error: "Demasiados intentos. Probá nuevamente más tarde." });
+		}
+		bucket.count += 1;
+		next();
+	};
+}
+
+const rateLimitCleanup = setInterval(() => {
+	const now = Date.now();
+	for (const [key, bucket] of rateLimitBuckets) {
+		if (bucket.expiresAt <= now) {
+			rateLimitBuckets.delete(key);
+		}
+	}
+}, 60 * 1000);
+rateLimitCleanup.unref();
+
+function requireSameOrigin(request, response, next) {
+	const origin = request.headers.origin;
+	if (origin && origin !== frontendOrigin) {
+		return response.status(403).json({ error: "Origen de solicitud no permitido." });
+	}
+	next();
+}
 
 function parseCookies(request) {
-	return Object.fromEntries((request.headers.cookie || "").split(";").filter(Boolean).map((cookie) => {
-		const separatorIndex = cookie.indexOf("=");
-		return [cookie.slice(0, separatorIndex).trim(), decodeURIComponent(cookie.slice(separatorIndex + 1).trim())];
-	}));
+	try {
+		return Object.fromEntries((request.headers.cookie || "").split(";").filter(Boolean).map((cookie) => {
+			const separatorIndex = cookie.indexOf("=");
+			return [cookie.slice(0, separatorIndex).trim(), decodeURIComponent(cookie.slice(separatorIndex + 1).trim())];
+		}));
+	} catch {
+		return {};
+	}
 }
 
 function passwordMatches(password) {
-	const configuredHash = process.env.ADMIN_PASSWORD_HASH;
+	const configuredHash = adminPasswordHash;
 	if (!configuredHash) {
 		return password === adminPassword;
 	}
@@ -45,7 +92,7 @@ function passwordMatches(password) {
 
 function setSessionCookie(response, token, maxAge = sessionDuration / 1000) {
 	const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-	response.setHeader("Set-Cookie", `${sessionCookieName}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`);
+	response.setHeader("Set-Cookie", `${sessionCookieName}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Strict${secure}`);
 }
 
 function requireAdmin(request, response, next) {
@@ -62,7 +109,7 @@ function requireAdmin(request, response, next) {
 	next();
 }
 
-app.post("/api/auth/login", (request, response) => {
+app.post("/api/auth/login", requireSameOrigin, rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 }), (request, response) => {
 	const { username, password } = request.body;
 	if (username !== adminUsername || typeof password !== "string" || !passwordMatches(password)) {
 		return response.status(401).json({ error: "Usuario o contraseña incorrectos." });
@@ -74,7 +121,7 @@ app.post("/api/auth/login", (request, response) => {
 	return response.json({ username });
 });
 
-app.post("/api/auth/logout", (request, response) => {
+app.post("/api/auth/logout", requireSameOrigin, (request, response) => {
 	const token = parseCookies(request)[sessionCookieName];
 	if (token) {
 		sessions.delete(token);
@@ -111,6 +158,7 @@ database.exec(`
 		booking_date TEXT NOT NULL,
 		location TEXT NOT NULL CHECK (location IN ('palermo', 'belgrano')),
 		barber_id INTEGER REFERENCES barbers(id) ON DELETE SET NULL,
+		cancellation_token TEXT UNIQUE,
 		status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
 		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)
@@ -120,6 +168,10 @@ const bookingColumns = database.prepare("PRAGMA table_info(bookings)").all();
 if (!bookingColumns.some((column) => column.name === "barber_id")) {
 	database.exec("ALTER TABLE bookings ADD COLUMN barber_id INTEGER REFERENCES barbers(id) ON DELETE SET NULL");
 }
+if (!bookingColumns.some((column) => column.name === "cancellation_token")) {
+	database.exec("ALTER TABLE bookings ADD COLUMN cancellation_token TEXT");
+}
+database.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_cancellation_token ON bookings(cancellation_token) WHERE cancellation_token IS NOT NULL");
 
 const listBarbers = database.prepare(`
 	SELECT
@@ -171,8 +223,9 @@ const createBooking = database.prepare(`
 		service,
 		booking_date,
 		location,
-		barber_id
-	) VALUES (@name, @email, @phone, @service, @date, @location, @barberId)
+		barber_id,
+		cancellation_token
+	) VALUES (@name, @email, @phone, @service, @date, @location, @barberId, @cancellationToken)
 `);
 const listCustomerBookings = database.prepare(`
 	SELECT
@@ -181,17 +234,34 @@ const listCustomerBookings = database.prepare(`
 		bookings.service,
 		bookings.booking_date AS date,
 		bookings.location,
+		bookings.cancellation_token AS cancellationToken,
 		barbers.name AS barberName
 	FROM bookings
 	LEFT JOIN barbers ON barbers.id = bookings.barber_id
-	WHERE bookings.customer_email = ? AND bookings.customer_phone = ? AND bookings.status != 'cancelled'
+	WHERE bookings.cancellation_token = ? AND bookings.status != 'cancelled'
 	ORDER BY bookings.booking_date ASC, bookings.id ASC
 `);
 const cancelCustomerBooking = database.prepare(`
 	UPDATE bookings
 	SET status = 'cancelled'
-	WHERE id = ? AND customer_email = ? AND customer_phone = ? AND status != 'cancelled'
+	WHERE id = ? AND cancellation_token = ? AND status != 'cancelled'
 `);
+
+function isValidDate(value) {
+	if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+		return false;
+	}
+	const parsed = new Date(`${value}T00:00:00Z`);
+	return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function isValidTime(value) {
+	return typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+function isValidCancellationToken(value) {
+	return typeof value === "string" && /^[a-f0-9]{48}$/.test(value);
+}
 
 app.get("/api/health", (_request, response) => {
 	response.json({ status: "ok" });
@@ -211,7 +281,7 @@ app.get("/api/admin/barbers", requireAdmin, (_request, response) => {
 	response.json(barbers);
 });
 
-app.post("/api/admin/barbers", requireAdmin, (request, response) => {
+app.post("/api/admin/barbers", requireSameOrigin, requireAdmin, (request, response) => {
 	const { name, email, phone, location, days, start, end } = request.body;
 	const normalizedName = typeof name === "string" ? name.trim() : "";
 	const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
@@ -226,10 +296,10 @@ app.post("/api/admin/barbers", requireAdmin, (request, response) => {
 	if (!/^[-+()\s\d]{7,25}$/.test(normalizedPhone)) {
 		return response.status(400).json({ error: "Ingresá un teléfono válido." });
 	}
-	if (!["palermo", "belgrano"].includes(location) || !Array.isArray(days) || !days.length) {
+	if (!["palermo", "belgrano"].includes(location) || !Array.isArray(days) || !days.length || days.some((day) => !dayNames.includes(day)) || new Set(days).size !== days.length) {
 		return response.status(400).json({ error: "El local y al menos un día son obligatorios." });
 	}
-	if (typeof start !== "string" || typeof end !== "string" || start >= end) {
+	if (!isValidTime(start) || !isValidTime(end) || start >= end) {
 		return response.status(400).json({ error: "El horario de cierre debe ser posterior al de inicio." });
 	}
 
@@ -253,7 +323,7 @@ app.post("/api/admin/barbers", requireAdmin, (request, response) => {
 	}
 });
 
-app.delete("/api/admin/barbers/:id", requireAdmin, (request, response) => {
+app.delete("/api/admin/barbers/:id", requireSameOrigin, requireAdmin, (request, response) => {
 	const result = deleteBarber.run(request.params.id);
 	if (!result.changes) {
 		return response.status(404).json({ error: "Barbero no encontrado." });
@@ -265,7 +335,7 @@ app.get("/api/admin/bookings/pending", requireAdmin, (_request, response) => {
 	response.json(listPendingBookings.all());
 });
 
-app.delete("/api/admin/bookings/:id", requireAdmin, (request, response) => {
+app.delete("/api/admin/bookings/:id", requireSameOrigin, requireAdmin, (request, response) => {
 	const bookingId = Number(request.params.id);
 	if (!Number.isInteger(bookingId) || bookingId < 1) {
 		return response.status(400).json({ error: "El identificador del turno no es válido." });
@@ -278,7 +348,7 @@ app.delete("/api/admin/bookings/:id", requireAdmin, (request, response) => {
 	return response.status(204).send();
 });
 
-app.post("/api/bookings", (request, response) => {
+app.post("/api/bookings", rateLimit({ limit: 10, windowMs: 15 * 60 * 1000 }), (request, response) => {
 	const { name, email, phone, service, date, location, barberId } = request.body;
 	const normalizedName = typeof name === "string" ? name.trim() : "";
 	const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
@@ -296,7 +366,7 @@ app.post("/api/bookings", (request, response) => {
 	if (!["corte", "corte-barba", "barba"].includes(service)) {
 		return response.status(400).json({ error: "El servicio seleccionado no es válido." });
 	}
-	if (!["palermo", "belgrano"].includes(location) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+	if (!["palermo", "belgrano"].includes(location) || !isValidDate(date)) {
 		return response.status(400).json({ error: "La fecha o el local no son válidos." });
 	}
 	if (date < new Date().toISOString().slice(0, 10)) {
@@ -306,12 +376,13 @@ app.post("/api/bookings", (request, response) => {
 		return response.status(400).json({ error: "El barbero seleccionado no es válido." });
 	}
 	const selectedBarber = findBarber.get(Number(barberId));
-	const selectedDay = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"][new Date(`${date}T12:00:00`).getDay()];
+	const selectedDay = dayNames[new Date(`${date}T12:00:00`).getDay()];
 	if (!selectedBarber || selectedBarber.location !== location || !JSON.parse(selectedBarber.days).includes(selectedDay)) {
 		return response.status(400).json({ error: "El barbero no está disponible para ese local y día." });
 	}
 
 	try {
+		const cancellationToken = randomBytes(24).toString("hex");
 		const result = createBooking.run({
 			name: normalizedName,
 			email: normalizedEmail,
@@ -319,34 +390,33 @@ app.post("/api/bookings", (request, response) => {
 			service,
 			date,
 			location,
-			barberId: barberId || null
+			barberId: Number(barberId),
+			cancellationToken
 		});
-		return response.status(201).json({ id: result.lastInsertRowid, message: "Turno registrado correctamente." });
+		return response.status(201).json({ id: result.lastInsertRowid, cancellationToken, message: "Turno registrado correctamente." });
 	} catch (error) {
 		console.error("Error al guardar el turno:", error);
 		return response.status(500).json({ error: "No se pudo guardar el turno." });
 	}
 });
 
-app.get("/api/bookings/customer", (request, response) => {
-	const email = typeof request.query.email === "string" ? request.query.email.trim().toLowerCase() : "";
-	const phone = typeof request.query.phone === "string" ? request.query.phone.trim() : "";
+app.get("/api/bookings/customer", rateLimit({ limit: 10, windowMs: 15 * 60 * 1000 }), (request, response) => {
+	const cancellationToken = typeof request.query.token === "string" ? request.query.token.trim().toLowerCase() : "";
 
-	if (!/^\S+@\S+\.\S+$/.test(email) || !/^[-+()\s\d]{7,25}$/.test(phone)) {
-		return response.status(400).json({ error: "Ingresá el email y teléfono usados en la reserva." });
+	if (!isValidCancellationToken(cancellationToken)) {
+		return response.status(400).json({ error: "Ingresá el código de cancelación de tu reserva." });
 	}
-	return response.json(listCustomerBookings.all(email, phone));
+	return response.json(listCustomerBookings.all(cancellationToken));
 });
 
-app.patch("/api/bookings/:id/cancel", (request, response) => {
-	const email = typeof request.body.email === "string" ? request.body.email.trim().toLowerCase() : "";
-	const phone = typeof request.body.phone === "string" ? request.body.phone.trim() : "";
+app.patch("/api/bookings/:id/cancel", rateLimit({ limit: 10, windowMs: 15 * 60 * 1000, key: "booking-cancel" }), (request, response) => {
+	const cancellationToken = typeof request.body.token === "string" ? request.body.token.trim().toLowerCase() : "";
 	const bookingId = Number(request.params.id);
 
-	if (!Number.isInteger(bookingId) || !/^\S+@\S+\.\S+$/.test(email) || !/^[-+()\s\d]{7,25}$/.test(phone)) {
-		return response.status(400).json({ error: "Los datos para cancelar el turno no son válidos." });
+	if (!Number.isInteger(bookingId) || !isValidCancellationToken(cancellationToken)) {
+		return response.status(400).json({ error: "El código de cancelación no es válido." });
 	}
-	const result = cancelCustomerBooking.run(bookingId, email, phone);
+	const result = cancelCustomerBooking.run(bookingId, cancellationToken);
 	if (!result.changes) {
 		return response.status(404).json({ error: "No encontramos ese turno activo con esos datos." });
 	}

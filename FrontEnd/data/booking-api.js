@@ -37,17 +37,17 @@ export async function createBooking(booking) {
 	return parseResponse(response);
 }
 
-export async function getCustomerBookings(email, phone) {
-	const params = new URLSearchParams({ email, phone });
+export async function getCustomerBookings(token) {
+	const params = new URLSearchParams({ token });
 	const response = await fetch(`${API_BASE_URL}/bookings/customer?${params}`);
 	return parseResponse(response);
 }
 
-export async function cancelBooking(id, email, phone) {
+export async function cancelBooking(id, token) {
 	const response = await fetch(`${API_BASE_URL}/bookings/${id}/cancel`, {
 		method: "PATCH",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ email, phone })
+		body: JSON.stringify({ token })
 	});
 	return parseResponse(response);
 }

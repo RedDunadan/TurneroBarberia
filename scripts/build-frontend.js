@@ -5,7 +5,22 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const frontendRoot = path.join(projectRoot, "FrontEnd");
 const outputRoot = path.join(frontendRoot, "dist");
-const apiBaseUrl = (process.env.FRONTEND_API_BASE_URL || "http://localhost:3000/api").replace(/\/+$/, "");
+const configuredApiBaseUrl = process.env.FRONTEND_API_BASE_URL || "http://localhost:3000/api";
+let apiBaseUrl;
+
+try {
+	const parsedApiUrl = new URL(configuredApiBaseUrl);
+	if (!["http:", "https:"].includes(parsedApiUrl.protocol)) {
+		throw new Error("solo se permiten URLs HTTP o HTTPS");
+	}
+	apiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, "");
+} catch (error) {
+	throw new Error(`FRONTEND_API_BASE_URL no es válida: ${error.message}`);
+}
+
+function escapeHtmlAttribute(value) {
+	return value.replace(/[&"<>]/g, (character) => ({ "&": "&amp;", '"': "&quot;", "<": "&lt;", ">": "&gt;" }[character]));
+}
 
 await rm(outputRoot, { recursive: true, force: true });
 await mkdir(outputRoot, { recursive: true });
@@ -21,7 +36,7 @@ for (const entry of await readdir(frontendRoot)) {
 for (const pageName of ["Index.html", "admin.html"]) {
 	const pagePath = path.join(outputRoot, pageName);
 	const page = await readFile(pagePath, "utf8");
-	const configuredPage = page.replaceAll("__FRONTEND_API_BASE_URL__", apiBaseUrl);
+	const configuredPage = page.replaceAll("__FRONTEND_API_BASE_URL__", escapeHtmlAttribute(apiBaseUrl));
 	await writeFile(pagePath, configuredPage);
 }
 

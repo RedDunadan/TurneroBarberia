@@ -7,7 +7,16 @@ npm install
 npm run dev
 ```
 
-El comando carga los barberos de prueba, inicia la API con recarga automática y sirve el frontend en `http://localhost:5500`. La página pública queda en `http://localhost:5500/` y el panel en `http://localhost:5500/admin.html`. Las credenciales de desarrollo son `admin` / `admin`.
+Antes de iniciar el backend, configurá credenciales propias. El servidor ya no arranca con credenciales predeterminadas.
+
+En PowerShell:
+
+```powershell
+$env:ADMIN_USERNAME = "admin-local"
+$env:ADMIN_PASSWORD = "una-contraseña-larga-y-unica"
+```
+
+El comando carga los barberos de prueba, inicia la API con recarga automática y sirve el frontend en `http://localhost:5500`. La página pública queda en `http://localhost:5500/` y el panel en `http://localhost:5500/admin.html`. Usá las credenciales definidas en las variables de entorno.
 
 Detené ambos procesos con `Ctrl+C`.
 
@@ -63,16 +72,19 @@ La URL base de la API se configura en la etiqueta `meta[name="api-base-url"]` de
 
 El panel de administración se autentica contra la API mediante una cookie de sesión `HttpOnly`. Las rutas administrativas están bajo `/api/admin/*`; la API pública solo devuelve los datos de barberos necesarios para reservar.
 
-Para desarrollo, el backend usa `admin` / `admin` si no se configuran variables de entorno. En un entorno real, definí al menos:
+En cualquier entorno, el backend requiere `ADMIN_USERNAME` y una de estas dos opciones:
 
 ```text
 ADMIN_USERNAME=un-usuario-seguro
 ADMIN_PASSWORD=una-contraseña-segura
+ADMIN_PASSWORD_HASH=salt:hash
 FRONTEND_ORIGIN=https://tu-frontend.example.com
 NODE_ENV=production
 ```
 
-`ADMIN_PASSWORD_HASH` también permite usar una contraseña almacenada como hash `salt:hash` generado con `scrypt`. Las sesiones actuales viven en memoria y se invalidan al reiniciar el servidor; para producción con varias instancias conviene usar un almacén compartido de sesiones.
+`ADMIN_PASSWORD_HASH` permite usar una contraseña almacenada como hash `salt:hash` generado con `scrypt`; usalo en lugar de `ADMIN_PASSWORD`. Las sesiones actuales viven en memoria y se invalidan al reiniciar el servidor; para producción con varias instancias conviene usar un almacén compartido de sesiones.
+
+Al crear una reserva se genera un código secreto por turno y se muestra en la confirmación. Guardalo para consultar o cancelar la reserva.
 
 Para cargar los datos de prueba:
 

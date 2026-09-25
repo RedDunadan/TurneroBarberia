@@ -125,10 +125,10 @@ class BookingSection extends HTMLElement {
 		submitButton.disabled = true;
 
 		try {
-			await createBooking(booking);
+			const result = await createBooking(booking);
 			feedback.textContent = "Tu turno fue registrado correctamente.";
 			feedback.className = "booking-feedback is-success";
-			this.showConfirmation(booking, selectedBarber);
+			this.showConfirmation(booking, selectedBarber, result.cancellationToken);
 			this.form.reset();
 			this.setMinimumDate();
 			this.renderBarberOptions();
@@ -140,7 +140,7 @@ class BookingSection extends HTMLElement {
 		}
 	}
 
-	showConfirmation(booking, barber) {
+	showConfirmation(booking, barber, cancellationToken) {
 		const date = new Date(`${booking.date}T12:00:00`).toLocaleDateString("es-AR", {
 			weekday: "long",
 			day: "numeric",
@@ -152,7 +152,7 @@ class BookingSection extends HTMLElement {
 			barba: "Arreglo de barba"
 		};
 		const locationLabels = { palermo: "Palermo", belgrano: "Belgrano" };
-		this.querySelector(".confirmation-summary").textContent = `${date} · ${serviceLabels[booking.service]} · ${locationLabels[booking.location]} · ${barber?.name || "Barbero asignado"}. Te esperamos, ${booking.name}.`;
+		this.querySelector(".confirmation-summary").textContent = `${date} · ${serviceLabels[booking.service]} · ${locationLabels[booking.location]} · ${barber?.name || "Barbero asignado"}. Te esperamos, ${booking.name}. Código de cancelación: ${cancellationToken}`;
 		this.confirmation.hidden = false;
 	}
 
