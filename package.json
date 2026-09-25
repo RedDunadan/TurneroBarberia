@@ -1,0 +1,9 @@
+{
+  "name": "turnero-barberia",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "start": "node scripts/dev.js"
+  }
+}

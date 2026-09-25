@@ -1,4 +1,15 @@
-# FrontEnd
+## Arranque local
+
+Desde la raíz del proyecto:
+
+```bash
+npm install
+npm run dev
+```
+
+El comando carga los barberos de prueba, inicia la API con recarga automática y sirve el frontend en `http://localhost:5500`. La página pública queda en `http://localhost:5500/` y el panel en `http://localhost:5500/admin.html`. Las credenciales de desarrollo son `admin` / `admin`.
+
+Detené ambos procesos con `Ctrl+C`.
 
 ## Páginas
 
