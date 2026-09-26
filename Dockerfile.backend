@@ -20,4 +20,4 @@ USER node
 
 EXPOSE 3000
 VOLUME ["/data"]
-CMD ["sh", "-c", "node seed-barbers.js && node server.js"]
+CMD ["sh", "-c", "node seed-barbers.js && exec node server.js"]
