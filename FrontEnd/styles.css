@@ -12,9 +12,18 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; color: var(--ink); background: var(--paper); font-family: "Manrope", sans-serif; }
+body {
+	margin: 0;
+	color: var(--ink);
+	background: var(--paper);
+	font-family: "Manrope", sans-serif;
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
 a { color: inherit; text-decoration: none; }
 button, select, input { font: inherit; }
+img { max-width: 100%; display: block; }
+main { overflow-x: hidden; }
 
 .site-header { position: absolute; z-index: 2; top: 0; left: 0; width: 100%; padding: 26px 5vw; color: #fff; }
 .nav { display: flex; align-items: center; justify-content: space-between; max-width: 1280px; margin: 0 auto; }
@@ -101,13 +110,22 @@ h1 { max-width: 650px; margin: 0; font-size: clamp(4.5rem, 10vw, 8.5rem); font-w
 footer { display: flex; justify-content: space-between; gap: 30px; width: min(1120px, 90vw); margin: 0 auto; padding: 30px 0; color: var(--muted); font-size: .72rem; }
 footer strong { color: var(--ink); font-family: "Barlow Condensed", sans-serif; font-size: 1.2rem; letter-spacing: .05em; text-transform: uppercase; }
 
+@media (max-width: 980px) {
+	.booking-card { grid-template-columns: 1fr; }
+	.booking-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.field-wide { grid-column: span 2; }
+	.service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 800px) {
 	.site-header { padding: 20px 5vw; }
+	.nav { gap: 16px; }
+	.nav-links { gap: 14px; }
 	.nav-links a:not(.nav-cta) { display: none; }
-	.hero { min-height: 650px; }
-	h1 { font-size: clamp(4rem, 17vw, 7rem); }
+	.hero { min-height: 620px; }
+	h1 { font-size: clamp(3.4rem, 16vw, 6.5rem); }
 	.booking-wrap { margin-top: -35px; }
-	.booking-card, .booking-form { grid-template-columns: 1fr; }
+	.booking-form { grid-template-columns: 1fr; }
 	.booking-form .field-wide { grid-column: auto; }
 	.booking-intro { padding: 27px; }
 	.booking-form { gap: 15px; padding: 25px 27px 28px; }
@@ -124,4 +142,17 @@ footer strong { color: var(--ink); font-family: "Barlow Condensed", sans-serif; 
 	.steps { gap: 30px; }
 	footer { display: block; }
 	footer span { display: block; margin-top: 10px; }
+}
+
+@media (max-width: 480px) {
+	.site-header { padding-top: 16px; }
+	.brand { font-size: 1.25rem; }
+	.brand-mark { width: 30px; height: 30px; }
+	.nav-cta { padding: 10px 12px; font-size: 0.72rem; }
+	.hero-content { width: min(92vw, 640px); }
+	.hero-copy { font-size: 0.95rem; }
+	.button { width: 100%; }
+	.booking-confirmation { padding: 15px 16px; }
+	.customer-booking strong { font-size: 1.2rem; }
+	.section-heading h2 { font-size: clamp(2.3rem, 12vw, 3.2rem); }
 }

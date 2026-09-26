@@ -1,0 +1,17 @@
+{
+  "name": "Norte Barber Studio",
+  "short_name": "Norte Barber",
+  "description": "Sistema de reservas para barbería",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f1eb",
+  "theme_color": "#18211f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
