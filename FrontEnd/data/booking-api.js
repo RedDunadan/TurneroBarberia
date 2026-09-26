@@ -52,7 +52,14 @@ export async function cancelBooking(id, token) {
 	return parseResponse(response);
 }
 
-export async function getAvailableBarbers() {
-	const response = await fetch(`${API_BASE_URL}/barbers`);
-	return response.ok ? response.json() : [];
+export async function getAvailableBarbers(location, date) {
+	const params = new URLSearchParams();
+	if (location) params.set("location", location);
+	if (date) params.set("date", date);
+	const url = params.toString() ? `${API_BASE_URL}/barbers/available?${params}` : `${API_BASE_URL}/barbers`;
+	const response = await fetch(url);
+	if (!response.ok) {
+		return [];
+	}
+	return response.json();
 }

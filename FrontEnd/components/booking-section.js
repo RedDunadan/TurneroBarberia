@@ -77,7 +77,7 @@ class BookingSection extends HTMLElement {
 
 	async loadBarbers() {
 		try {
-			this.barbers = await getAvailableBarbers();
+			this.barbers = await getAvailableBarbers(this.locationInput.value, this.dateInput.value);
 			this.renderBarberOptions();
 		} catch {
 			this.barberInput.replaceChildren(new Option("No se pudieron cargar los barberos", ""));

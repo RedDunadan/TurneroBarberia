@@ -4,24 +4,39 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     environment:
+      NODE_ENV: production
       ADMIN_USERNAME: ${ADMIN_USERNAME:?Definí ADMIN_USERNAME en .env.docker}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Definí ADMIN_PASSWORD en .env.docker}
-      FRONTEND_ORIGIN: http://localhost:8080
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:8080}
     ports:
       - "3000:3000"
     volumes:
       - turnero-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        FRONTEND_API_BASE_URL: http://localhost:3000/api
+        FRONTEND_API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://localhost:3000/api}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "8080:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   turnero-data:

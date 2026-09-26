@@ -9,14 +9,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const databasePath = process.env.DATABASE_PATH || path.join(__dirname, "turnero.db");
 const database = new Database(databasePath);
 const app = express();
+app.disable("x-powered-by");
 const port = process.env.PORT || 3000;
+const isProduction = process.env.NODE_ENV === "production";
 const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5500";
+const frontendAllowedOrigins = new Set((process.env.FRONTEND_ORIGINS || frontendOrigin)
+	.split(",")
+	.map((origin) => origin.trim())
+	.filter(Boolean)
+	.map((origin) => origin.replace(/\/+$/, "")));
 const adminUsername = process.env.ADMIN_USERNAME?.trim();
 const adminPassword = process.env.ADMIN_PASSWORD;
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
-const sessions = new Map();
 const rateLimitBuckets = new Map();
-const sessionDuration = 8 * 60 * 60 * 1000;
+const sessionDuration = Number(process.env.SESSION_DURATION_MS || 8 * 60 * 60 * 1000);
 const sessionCookieName = "admin_session";
 const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
@@ -24,7 +30,26 @@ if (!adminUsername || (!adminPassword && !adminPasswordHash)) {
 	throw new Error("ADMIN_USERNAME y ADMIN_PASSWORD o ADMIN_PASSWORD_HASH son obligatorios.");
 }
 
-app.use(cors({ origin: frontendOrigin, credentials: true }));
+app.use(cors({
+	origin: (requestOrigin, callback) => {
+		if (!requestOrigin || frontendAllowedOrigins.has(requestOrigin.replace(/\/+$/, ""))) {
+			return callback(null, true);
+		}
+		return callback(new Error("Origen de solicitud no permitido."));
+	},
+	credentials: true
+}));
+app.use((request, response, next) => {
+	response.setHeader("X-Content-Type-Options", "nosniff");
+	response.setHeader("X-Frame-Options", "SAMEORIGIN");
+	response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+	response.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+	response.setHeader("X-XSS-Protection", "1; mode=block");
+	if (isProduction) {
+		response.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+	}
+	next();
+});
 app.use(express.json({ limit: "16kb" }));
 
 function rateLimit({ limit, windowMs, key: bucketKey }) {
@@ -56,8 +81,8 @@ const rateLimitCleanup = setInterval(() => {
 rateLimitCleanup.unref();
 
 function requireSameOrigin(request, response, next) {
-	const origin = request.headers.origin;
-	if (origin && origin !== frontendOrigin) {
+	const origin = request.headers.origin?.replace(/\/+$/, "");
+	if (origin && !frontendAllowedOrigins.has(origin)) {
 		return response.status(403).json({ error: "Origen de solicitud no permitido." });
 	}
 	next();
@@ -92,16 +117,49 @@ function passwordMatches(password) {
 }
 
 function setSessionCookie(response, token, maxAge = sessionDuration / 1000) {
-	const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-	response.setHeader("Set-Cookie", `${sessionCookieName}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Strict${secure}`);
+	const secure = isProduction ? "; Secure" : "";
+	response.setHeader("Set-Cookie", `${sessionCookieName}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`);
+}
+
+function sessionStoreGet(token) {
+	if (!token) {
+		return null;
+	}
+
+	const row = database.prepare("SELECT username, expires_at AS expiresAt FROM admin_sessions WHERE token = ?").get(token);
+	if (!row) {
+		return null;
+	}
+
+	if (row.expiresAt <= Date.now()) {
+		database.prepare("DELETE FROM admin_sessions WHERE token = ?").run(token);
+		return null;
+	}
+
+	return { username: row.username, expiresAt: row.expiresAt };
+}
+
+function sessionStoreSet(token, username, expiresAt) {
+	database.prepare(`
+		INSERT INTO admin_sessions (token, username, expires_at)
+		VALUES (@token, @username, @expiresAt)
+		ON CONFLICT(token) DO UPDATE SET username = excluded.username, expires_at = excluded.expires_at
+	`).run({ token, username, expiresAt });
+}
+
+function sessionStoreDelete(token) {
+	if (!token) {
+		return;
+	}
+	database.prepare("DELETE FROM admin_sessions WHERE token = ?").run(token);
 }
 
 function requireAdmin(request, response, next) {
 	const token = parseCookies(request)[sessionCookieName];
-	const session = token ? sessions.get(token) : null;
-	if (!session || session.expiresAt <= Date.now()) {
+	const session = sessionStoreGet(token);
+	if (!session) {
 		if (token) {
-			sessions.delete(token);
+			sessionStoreDelete(token);
 		}
 		return response.status(401).json({ error: "Se requiere una sesión de administrador." });
 	}
@@ -117,7 +175,8 @@ app.post("/api/auth/login", requireSameOrigin, rateLimit({ limit: 5, windowMs: 1
 	}
 
 	const token = randomBytes(32).toString("hex");
-	sessions.set(token, { username, expiresAt: Date.now() + sessionDuration });
+	const expiresAt = Date.now() + sessionDuration;
+	sessionStoreSet(token, username, expiresAt);
 	setSessionCookie(response, token);
 	return response.json({ username });
 });
@@ -125,7 +184,7 @@ app.post("/api/auth/login", requireSameOrigin, rateLimit({ limit: 5, windowMs: 1
 app.post("/api/auth/logout", requireSameOrigin, (request, response) => {
 	const token = parseCookies(request)[sessionCookieName];
 	if (token) {
-		sessions.delete(token);
+		sessionStoreDelete(token);
 	}
 	setSessionCookie(response, "", 0);
 	return response.status(204).send();
@@ -138,6 +197,12 @@ app.get("/api/auth/me", requireAdmin, (_request, response) => {
 database.pragma("journal_mode = WAL");
 database.pragma("foreign_keys = ON");
 database.exec(`
+	CREATE TABLE IF NOT EXISTS admin_sessions (
+		token TEXT PRIMARY KEY,
+		username TEXT NOT NULL,
+		expires_at INTEGER NOT NULL
+	);
+
 	CREATE TABLE IF NOT EXISTS barbers (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
@@ -265,12 +330,50 @@ function isValidCancellationToken(value) {
 }
 
 app.get("/api/health", (_request, response) => {
-	response.json({ status: "ok" });
+	try {
+		database.prepare("SELECT 1").get();
+		response.json({
+			status: "ok",
+			timestamp: new Date().toISOString(),
+			uptimeSeconds: Math.floor(process.uptime()),
+			env: process.env.NODE_ENV || "development"
+		});
+	} catch (error) {
+		console.error("Health check failed:", error);
+		response.status(500).json({ status: "error", error: "Database unavailable" });
+	}
 });
+
+function getMatchingBarbersByDate(location, date) {
+	const selectedDay = dayNames[new Date(`${date}T12:00:00`).getDay()];
+	return listBarbers.all()
+		.map(({ id, name, location: barberLocation, days, start, end, email, phone }) => ({
+			id,
+			name,
+			location: barberLocation,
+			days: JSON.parse(days),
+			start,
+			end,
+			email,
+			phone
+		}))
+		.filter((barber) => barber.location === location && barber.days.includes(selectedDay));
+}
 
 app.get("/api/barbers", (_request, response) => {
 	const barbers = listBarbers.all().map(({ id, name, location, days }) => ({ id, name, location, days: JSON.parse(days) }));
 	response.json(barbers);
+});
+
+app.get("/api/barbers/available", (request, response) => {
+	const location = typeof request.query.location === "string" ? request.query.location.trim() : "";
+	const date = typeof request.query.date === "string" ? request.query.date.trim() : "";
+
+	if (!location || !["palermo", "belgrano"].includes(location) || !isValidDate(date)) {
+		return response.status(400).json({ error: "La fecha y el local son obligatorios y deben ser válidos." });
+	}
+
+	response.json(getMatchingBarbersByDate(location, date));
 });
 
 app.get("/api/admin/barbers", requireAdmin, (_request, response) => {
@@ -378,7 +481,9 @@ app.post("/api/bookings", rateLimit({ limit: 10, windowMs: 15 * 60 * 1000 }), (r
 	}
 	const selectedBarber = findBarber.get(Number(barberId));
 	const selectedDay = dayNames[new Date(`${date}T12:00:00`).getDay()];
-	if (!selectedBarber || selectedBarber.location !== location || !JSON.parse(selectedBarber.days).includes(selectedDay)) {
+	const availableBarbers = getMatchingBarbersByDate(location, date);
+	const isAvailable = Boolean(selectedBarber && selectedBarber.location === location && JSON.parse(selectedBarber.days).includes(selectedDay) && availableBarbers.some((barber) => barber.id === Number(barberId)));
+	if (!isAvailable) {
 		return response.status(400).json({ error: "El barbero no está disponible para ese local y día." });
 	}
 
