@@ -4,6 +4,7 @@ Desde la raíz del proyecto:
 
 ```bash
 npm install
+npm install --prefix BackEnd
 npm run dev
 ```
 
@@ -14,13 +15,19 @@ En PowerShell:
 ```powershell
 $env:ADMIN_USERNAME = "admin-local"
 $env:ADMIN_PASSWORD = "una-contraseña-larga-y-unica"
+$env:DB_HOST = "localhost"
+$env:DB_NAME = "turnero"
+$env:DB_USER = "turnero"
+$env:DB_PASSWORD = "tu-clave-local"
 ```
 
-El comando carga los barberos de prueba, inicia la API con recarga automática y sirve el frontend en `http://localhost:5500`. La página pública queda en `http://localhost:5500/` y el panel en `http://localhost:5500/admin.html`. Usá las credenciales definidas en las variables de entorno.
+Antes, iniciá PostgreSQL local con Docker Compose: `docker compose --env-file .env.docker up -d database`. El comando carga los barberos de prueba, inicia la API con recarga automática y sirve el frontend en `http://localhost:5500`. La página pública queda en `http://localhost:5500/` y el panel en `http://localhost:5500/admin.html`. Usá las credenciales definidas en las variables de entorno.
 
 Detené ambos procesos con `Ctrl+C`.
 
-## Docker
+Para desplegar en Firebase Hosting, Cloud Run y Cloud SQL, seguí [DEPLOY_GOOGLE_CLOUD.md](DEPLOY_GOOGLE_CLOUD.md).
+
+## Docker local
 
 Requisitos: Docker Desktop en ejecución.
 
@@ -33,13 +40,13 @@ docker compose --env-file .env.docker up --build -d
 
 Abrí `http://localhost:8080/` para el sitio público y `http://localhost:8080/admin.html` para el panel. La API queda publicada en `http://localhost:3000`.
 
-La base SQLite se conserva en el volumen `turnero-data`. Para detener los contenedores sin borrar los turnos:
+PostgreSQL se conserva en el volumen `turnero-postgres`. Para detener los contenedores sin borrar los turnos:
 
 ```bash
 docker compose down
 ```
 
-Para borrar también la base persistida:
+`docker compose down -v` también borra la base persistida.
 
 ```bash
 docker compose down -v
@@ -47,7 +54,7 @@ docker compose down -v
 
 ## Configuración y build del frontend
 
-El frontend tiene su propio `package.json` y usa módulos JavaScript nativos, sin dependencias externas ni bundler. El build copia los archivos estáticos a `FrontEnd/dist` y configura la URL de la API desde la variable de entorno `FRONTEND_API_BASE_URL`.
+El frontend tiene su propio `package.json` y usa módulos JavaScript nativos, sin dependencias externas ni bundler. El build copia los archivos estáticos a `FrontEnd/dist` y configura la URL de la API desde `FRONTEND_API_BASE_URL`; el valor predeterminado `/api` funciona con el rewrite de Firebase Hosting.
 
 Para construirlo:
 
@@ -62,7 +69,7 @@ $env:FRONTEND_API_BASE_URL = "https://api.example.com/api"
 npm run build:frontend
 ```
 
-El valor predeterminado es `http://localhost:3000/api`. El desarrollo continúa sirviendo los archivos fuente directamente con `npm run dev`.
+Para Docker local, Compose construye el frontend con `http://localhost:3000/api`. El desarrollo sirve los archivos fuente directamente con `npm run dev`.
 
 ## Páginas
 
@@ -88,12 +95,13 @@ El valor predeterminado es `http://localhost:3000/api`. El desarrollo continúa 
 ## Backend
 
 - `BackEnd/server.js`: API HTTP y validación de turnos.
-- `BackEnd/turnero.db`: base SQLite creada al iniciar el servidor.
-- `BackEnd/seed-barbers.js`: carga idempotente de tres barberos de prueba.
+- `BackEnd/database.js`: pool PostgreSQL y creación idempotente del esquema.
+- `BackEnd/seed-barbers.js`: carga idempotente de barberos de prueba para desarrollo.
+- `BackEnd/migrate-sqlite-to-postgres.js`: importador opcional de SQLite a PostgreSQL.
 
 La reserva pública consulta los barberos disponibles según local y día, y envía el `barberId` junto con el turno. La cantidad de turnos de cada barbero se calcula desde la relación entre `bookings` y `barbers`.
 
-La URL base de la API se configura en la etiqueta `meta[name="api-base-url"]` de `Index.html` y `admin.html`. El valor predeterminado para desarrollo es `http://localhost:3000/api`; para otro entorno, reemplazalo por la URL pública de la API en ambos archivos.
+La URL base de la API se configura en la etiqueta `meta[name="api-base-url"]` de `Index.html` y `admin.html`. Firebase Hosting usa `/api`; en desarrollo local se usa `http://localhost:3000/api`.
 
 El panel de administración se autentica contra la API mediante una cookie de sesión `HttpOnly`. Las rutas administrativas están bajo `/api/admin/*`; la API pública solo devuelve los datos de barberos necesarios para reservar.
 
@@ -107,7 +115,7 @@ FRONTEND_ORIGIN=https://tu-frontend.example.com
 NODE_ENV=production
 ```
 
-`ADMIN_PASSWORD_HASH` permite usar una contraseña almacenada como hash `salt:hash` generado con `scrypt`; usalo en lugar de `ADMIN_PASSWORD`. Las sesiones actuales viven en memoria y se invalidan al reiniciar el servidor; para producción con varias instancias conviene usar un almacén compartido de sesiones.
+`ADMIN_PASSWORD_HASH` permite usar una contraseña almacenada como hash `salt:hash` generado con `scrypt`; usalo en lugar de `ADMIN_PASSWORD`. Las sesiones se guardan en PostgreSQL y sobreviven a reinicios del backend.
 
 Al crear una reserva se genera un código secreto por turno y se muestra en la confirmación. Guardalo para consultar o cancelar la reserva.
 

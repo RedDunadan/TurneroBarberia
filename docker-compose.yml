@@ -1,4 +1,18 @@
 services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-turnero}
+      POSTGRES_USER: ${DB_USER:-turnero}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-turnero-local-password}
+    volumes:
+      - turnero-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-turnero} -d ${DB_NAME:-turnero}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: .
@@ -7,14 +21,19 @@ services:
       NODE_ENV: production
       ADMIN_USERNAME: ${ADMIN_USERNAME:?Definí ADMIN_USERNAME en .env.docker}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Definí ADMIN_PASSWORD en .env.docker}
+      DB_HOST: database
+      DB_NAME: ${DB_NAME:-turnero}
+      DB_USER: ${DB_USER:-turnero}
+      DB_PASSWORD: ${DB_PASSWORD:-turnero-local-password}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8080}
       FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:8080}
     ports:
-      - "3000:3000"
-    volumes:
-      - turnero-data:/data
+      - "3000:8080"
+    depends_on:
+      database:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:8080/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -39,4 +58,4 @@ services:
       start_period: 10s
 
 volumes:
-  turnero-data:
+  turnero-postgres:

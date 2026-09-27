@@ -6,11 +6,15 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "seed:barbers": "node seed-barbers.js"
+    "seed:barbers": "node seed-barbers.js",
+    "migrate:sqlite": "node migrate-sqlite-to-postgres.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0",
     "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^13.0.3"
   }
 }

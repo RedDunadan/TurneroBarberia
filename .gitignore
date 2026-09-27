@@ -6,4 +6,5 @@ node_modules/
 BackEnd/turnero.db
 BackEnd/turnero.db-wal
 BackEnd/turnero.db-shm
+BackEnd/turnero.db.backup
 FrontEnd/dist/

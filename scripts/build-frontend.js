@@ -5,17 +5,21 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const frontendRoot = path.join(projectRoot, "FrontEnd");
 const outputRoot = path.join(frontendRoot, "dist");
-const configuredApiBaseUrl = process.env.FRONTEND_API_BASE_URL || "http://localhost:3000/api";
+const configuredApiBaseUrl = process.env.FRONTEND_API_BASE_URL || "/api";
 let apiBaseUrl;
 
-try {
-	const parsedApiUrl = new URL(configuredApiBaseUrl);
-	if (!["http:", "https:"].includes(parsedApiUrl.protocol)) {
-		throw new Error("solo se permiten URLs HTTP o HTTPS");
+if (configuredApiBaseUrl.startsWith("/") && !configuredApiBaseUrl.startsWith("//")) {
+	apiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, "") || "/";
+} else {
+	try {
+		const parsedApiUrl = new URL(configuredApiBaseUrl);
+		if (!["http:", "https:"].includes(parsedApiUrl.protocol)) {
+			throw new Error("solo se permiten URLs HTTP o HTTPS");
+		}
+		apiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, "");
+	} catch (error) {
+		throw new Error(`FRONTEND_API_BASE_URL no es válida: ${error.message}`);
 	}
-	apiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, "");
-} catch (error) {
-	throw new Error(`FRONTEND_API_BASE_URL no es válida: ${error.message}`);
 }
 
 function escapeHtmlAttribute(value) {

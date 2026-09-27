@@ -1,29 +1,12 @@
-import Database from "better-sqlite3";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { initializeDatabase, pool, query } from "./database.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const databasePath = process.env.DATABASE_PATH || path.join(__dirname, "turnero.db");
-const database = new Database(databasePath);
+await initializeDatabase();
 
-database.exec(`
-	CREATE TABLE IF NOT EXISTS barbers (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
-		email TEXT NOT NULL UNIQUE,
-		phone TEXT NOT NULL,
-		location TEXT NOT NULL CHECK (location IN ('palermo', 'belgrano')),
-		days TEXT NOT NULL,
-		start_time TEXT NOT NULL,
-		end_time TEXT NOT NULL,
-		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-	)
-`);
-
-const addBarber = database.prepare(`
-	INSERT OR IGNORE INTO barbers (name, email, phone, location, days, start_time, end_time)
-	VALUES (@name, @email, @phone, @location, @days, @start, @end)
-`);
+const addBarber = `
+	INSERT INTO barbers (name, email, phone, location, days, start_time, end_time)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	ON CONFLICT (email) DO NOTHING
+`;
 
 const testBarbers = [
 	{ name: "Lucía Benítez", email: "lucia.benitez@norte.test", phone: "11 4000 1001", location: "palermo", days: ["lunes", "miércoles", "viernes"], start: "10:00", end: "18:00" },
@@ -31,6 +14,11 @@ const testBarbers = [
 	{ name: "Valentina Díaz", email: "valentina.diaz@norte.test", phone: "11 4000 1003", location: "palermo", days: ["martes", "jueves", "sábado"], start: "12:00", end: "20:00" }
 ];
 
-testBarbers.forEach((barber) => addBarber.run({ ...barber, days: JSON.stringify(barber.days) }));
-console.log(`${testBarbers.length} barberos de prueba disponibles en la base.`);
-database.close();
+try {
+	for (const barber of testBarbers) {
+		await query(addBarber, [barber.name, barber.email, barber.phone, barber.location, JSON.stringify(barber.days), barber.start, barber.end]);
+	}
+	console.log(`${testBarbers.length} barberos de prueba disponibles en la base.`);
+} finally {
+	await pool.end();
+}
